@@ -48,4 +48,7 @@ dependencies {
     implementation 'androidx.activity:activity-ktx:1.7.1'
 
     implementation "io.insert-koin:koin-android:3.4.0"
+
+    implementation 'com.github.hadilq:live-event:1.3.0'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
 }
