@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Bundle
 import com.vuerts.permission.data.location.mapper.AndroidLocationToLocationMapper
 import com.vuerts.permission.domain.location.exception.LocationIsOffException
 import com.vuerts.permission.domain.location.model.Location
@@ -52,6 +53,10 @@ class LocationRepositoryImpl(
                     it.resume(AndroidLocationToLocationMapper().map(location))
                     locationService.removeUpdates(this)
                 }
+
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
             }
 
             it.invokeOnCancellation { locationService.removeUpdates(callback) }
