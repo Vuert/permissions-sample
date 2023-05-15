@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Location</string>
+    <string name="btn_get_location">Get location</string>
+    <string name="location_unknown">Unknown</string>
+    <string name="location_patter">Longitude: %1$f, Latitude: %2$f</string>
+    <string name="location_permission_required">Location permission is required</string>
+    <string name="location_is_off">Location is off</string>
+    <string name="error_occurred">Error occurred</string>
+</resources>
