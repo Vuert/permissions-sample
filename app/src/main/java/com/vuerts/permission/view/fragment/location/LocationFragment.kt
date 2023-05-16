@@ -54,7 +54,7 @@ class LocationFragment : Fragment() {
 
     private fun listenViewModel(binding: FragmentLocationBinding, viewModel: LocationViewModel) {
         viewLifecycleOwner.repeatOnStarted {
-            viewModel.locationStateFlow.collect {
+            viewModel.location.collect {
                 binding.tvLocation.text = when (it) {
                     LocationState.Empty -> {
                         getString(R.string.location_unknown)
@@ -79,7 +79,7 @@ class LocationFragment : Fragment() {
         }
 
         viewLifecycleOwner.repeatOnStarted {
-            viewModel.errorFlow.collect {
+            viewModel.error.collect {
 
                 val message = when {
                     it is PermissionChecker.PermissionsDeniedException &&
