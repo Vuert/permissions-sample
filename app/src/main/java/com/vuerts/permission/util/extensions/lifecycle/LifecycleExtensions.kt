@@ -15,6 +15,10 @@ inline fun Lifecycle.repeatOnStarted(
     repeatOnLifecycle(Lifecycle.State.STARTED) { block() }
 }
 
+inline fun Lifecycle.launchOnLifecycleStart(
+    crossinline block: CoroutineScope.() -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_START) { block() }
+
 inline fun Lifecycle.launchOnLifecycleDestroy(
     crossinline block: CoroutineScope.() -> Unit,
 ): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_DESTROY) { block() }

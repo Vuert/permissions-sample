@@ -15,25 +15,25 @@ class LocationViewModel(
 ) : ViewModel() {
 
     private val _errorLiveEvent = LiveEvent<Throwable>()
-    val errorFlow = _errorLiveEvent.asFlow()
+    val error = _errorLiveEvent.asFlow()
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading = _isLoading.asStateFlow()
+    private val _isLoadingStateFlow = MutableStateFlow(false)
+    val isLoading = _isLoadingStateFlow.asStateFlow()
 
     private val _locationStateFlow = MutableStateFlow<LocationState>(LocationState.Empty)
-    val locationStateFlow = _locationStateFlow.asStateFlow()
+    val location = _locationStateFlow.asStateFlow()
 
     fun onGetLocationButtonClicked() {
         viewModelScope.launch {
-            _isLoading.value = true
+            _isLoadingStateFlow.value = true
             try {
                 _locationStateFlow.value = LocationState.Loaded(
                     location = locationRepository.getLocation(),
                 )
             } catch (e: Throwable) {
-                _errorLiveEvent.postValue(e)
+                _errorLiveEvent.value = e
             } finally {
-                _isLoading.value = false
+                _isLoadingStateFlow.value = false
             }
         }
     }
