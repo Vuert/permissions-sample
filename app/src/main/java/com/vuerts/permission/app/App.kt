@@ -4,8 +4,10 @@ import android.app.Application
 import com.vuerts.permission.data.location.repository.LocationRepositoryImpl
 import com.vuerts.permission.domain.location.repository.LocationRepository
 import com.vuerts.permission.presentation.location.viewmodel.LocationViewModel
+import com.vuerts.permission.util.permissionchecker.PermissionActivityProviderImpl
 import com.vuerts.permission.util.permissionchecker.PermissionChecker
 import com.vuerts.permission.util.permissionchecker.ResultApiPermissionChecker
+import org.koin.android.ext.koin.androidApplication
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.core.context.GlobalContext.startKoin
@@ -30,7 +32,13 @@ class App : Application() {
 }
 
 private fun getModule(): Module = module {
-    single { ResultApiPermissionChecker() } bind PermissionChecker::class
+    single {
+        ResultApiPermissionChecker(
+            activityProvider = PermissionActivityProviderImpl(
+                application = androidApplication(),
+            ),
+        )
+    } bind PermissionChecker::class
     single<LocationRepository> {
         LocationRepositoryImpl(
             context = androidContext(),

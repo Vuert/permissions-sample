@@ -19,7 +19,7 @@
         android:theme="@style/Theme.Clean"
         tools:targetApi="31">
         <activity
-            android:name="com.vuerts.permission.view.activity.SingleActivity"
+            android:name=".view.activity.SingleActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -3,16 +3,22 @@ package com.vuerts.permission.util.permissionchecker
 import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.vuerts.permission.util.extensions.lifecycle.launchOnLifecycleStart
 import org.koin.android.ext.android.get
+import java.util.UUID
+import kotlin.properties.Delegates
 
 /**
- * Base activity for all activities.
- * Attaches to [ResultApiPermissionChecker] and transfers permission result
+ * Base activity for all activities. Transfers permission result to [ResultApiPermissionChecker]
  */
 abstract class PermissionCheckerActivity : AppCompatActivity() {
 
     private val permissionChecker = get<ResultApiPermissionChecker>()
+
+    /**
+     * Unique activity key
+     */
+    var key: String by Delegates.notNull()
+        private set
 
     val resultLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -22,13 +28,25 @@ abstract class PermissionCheckerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        initKey(savedInstanceState)
         super.onCreate(savedInstanceState)
-        launchOnLifecycleStart {
-            permissionChecker.attach(this@PermissionCheckerActivity)
-        }
+    }
+
+    private fun initKey(savedInstanceState: Bundle?) {
+        key = savedInstanceState?.getString(ACTIVITY_KEY)
+            ?: "${UUID.randomUUID()}:${System.currentTimeMillis()}"
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(ACTIVITY_KEY, key)
+        super.onSaveInstanceState(outState)
     }
 
     open fun onPermissionResult(result: Map<String, Boolean>) {
         // None
+    }
+
+    companion object {
+        private const val ACTIVITY_KEY = "ACTIVITY_KEY"
     }
 }
