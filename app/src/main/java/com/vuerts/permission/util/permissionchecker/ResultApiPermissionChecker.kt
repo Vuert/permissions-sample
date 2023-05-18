@@ -48,14 +48,13 @@ class ResultApiPermissionChecker : PermissionChecker {
         return try {
             awaitUntilActivityAttachedAndActive()
 
-            val resultLauncher = requireNotNull(
-                activityRef.get()?.get()?.resultLauncher
-            )
+            var resultLauncher = activityRef.get()?.get()?.resultLauncher
 
             val result: PermissionResult = suspendCancellableCoroutine {
                 resultCallbackRef.set(it::resume)
                 it.invokeOnCancellation { resultCallbackRef.set(null) }
-                resultLauncher.launch(arrayOf(*permissions))
+                resultLauncher?.launch(arrayOf(*permissions))
+                resultLauncher = null // Preventing memory leak
             }
 
             resultCallbackRef.set(null)
