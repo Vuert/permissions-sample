@@ -1,7 +1,9 @@
 package com.vuerts.permission.util.permissionchecker
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -46,15 +48,13 @@ class ResultApiPermissionChecker : PermissionChecker {
         mutex.lock()
 
         return try {
-            awaitUntilActivityAttachedAndActive()
-
-            var resultLauncher = activityRef.get()?.get()?.resultLauncher
+            var activity: PermissionCheckerActivity? = awaitForActivityOrThrow()
 
             val result: PermissionResult = suspendCancellableCoroutine {
                 resultCallbackRef.set(it::resume)
                 it.invokeOnCancellation { resultCallbackRef.set(null) }
-                resultLauncher?.launch(arrayOf(*permissions))
-                resultLauncher = null // Preventing memory leak
+                activity?.resultLauncher?.launch(arrayOf(*permissions))
+                activity = null // Preventing memory leak
             }
 
             resultCallbackRef.set(null)
@@ -79,9 +79,11 @@ class ResultApiPermissionChecker : PermissionChecker {
     }
 
     /**
-     * Awaits until [activityRef] is attached and active or reaches the await timeout
+     * Awaits for attached and active activity
+     *
+     * @throws [ActivityNotFoundException] if reaches the timeout
      */
-    private suspend fun awaitUntilActivityAttachedAndActive() {
+    private suspend fun awaitForActivityOrThrow(): PermissionCheckerActivity {
         var checkAttempts = 0
 
         while (coroutineContext.isActive &&
@@ -92,12 +94,13 @@ class ResultApiPermissionChecker : PermissionChecker {
             checkAttempts++
         }
 
-        if (activityRef.get()?.get()?.isDestroyed != false && coroutineContext.isActive) {
-            throw ActivityIsNotAttachedOrActiveException()
+        return activityRef.get()?.get().let {
+            coroutineContext.ensureActive()
+            if (it?.isDestroyed == false) {
+                it
+            } else {
+                throw ActivityNotFoundException()
+            }
         }
     }
-
-    class ActivityIsNotAttachedOrActiveException : Exception(
-        "Activity is not attached or active"
-    )
 }
