@@ -2,13 +2,16 @@ package com.vuerts.permission.util.permissionchecker
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import androidx.annotation.MainThread
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
-import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
@@ -19,26 +22,30 @@ private typealias ActivityWeakRef = WeakReference<PermissionCheckerActivity>
 private const val ACTIVITY_CHECK_TIMEOUT_MS = 500L
 private const val ACTIVITY_CHECK_ATTEMPTS_AMOUNT = 3
 
-class ResultApiPermissionChecker : PermissionChecker {
+class ResultApiPermissionChecker(
+    private val mainDispatcher: CoroutineContext = Dispatchers.Main.immediate,
+) : PermissionChecker {
 
     private val mutex = Mutex()
 
-    private val activityRef: AtomicReference<ActivityWeakRef?> = AtomicReference()
+    private var activityWeakRef: ActivityWeakRef? = null
 
-    private val resultCallbackRef: AtomicReference<ResultCallback?> = AtomicReference()
+    private var resultCallback: ResultCallback? = null
 
     /**
      * Stores [activity] using a [WeakReference]. Call it on [Activity.onStart]
      */
+    @MainThread
     fun attach(activity: PermissionCheckerActivity) {
-        activityRef.set(WeakReference(activity))
+        activityWeakRef = WeakReference(activity)
     }
 
     /**
      * Accepts permission result from an activity
      */
+    @MainThread
     fun onPermissionResult(result: PermissionResult) {
-        resultCallbackRef.get()?.invoke(result)
+        resultCallback?.invoke(result)
     }
 
     /**
@@ -48,16 +55,20 @@ class ResultApiPermissionChecker : PermissionChecker {
         mutex.lock()
 
         return try {
-            var activity: PermissionCheckerActivity? = awaitForActivityOrThrow()
+            val result: PermissionResult = withContext(mainDispatcher) {
+                var activity: PermissionCheckerActivity? = awaitForActivityOrThrow()
 
-            val result: PermissionResult = suspendCancellableCoroutine {
-                resultCallbackRef.set(it::resume)
-                it.invokeOnCancellation { resultCallbackRef.set(null) }
-                activity?.resultLauncher?.launch(arrayOf(*permissions))
-                activity = null // Preventing memory leak
+                val result: PermissionResult = suspendCancellableCoroutine {
+                    resultCallback = it::resume
+                    it.invokeOnCancellation { resultCallback = null }
+                    activity?.resultLauncher?.launch(arrayOf(*permissions))
+                    activity = null // Preventing memory leak
+                }
+
+                resultCallback = null
+
+                result
             }
-
-            resultCallbackRef.set(null)
 
             if (result.all { it.value }) {
                 Result.success(Unit)
@@ -87,14 +98,14 @@ class ResultApiPermissionChecker : PermissionChecker {
         var checkAttempts = 0
 
         while (coroutineContext.isActive &&
-            activityRef.get()?.get()?.isDestroyed != false &&
+            activityWeakRef?.get()?.isDestroyed != false &&
             checkAttempts != ACTIVITY_CHECK_ATTEMPTS_AMOUNT
         ) {
             delay(ACTIVITY_CHECK_TIMEOUT_MS)
             checkAttempts++
         }
 
-        return activityRef.get()?.get().let {
+        return activityWeakRef?.get().let {
             coroutineContext.ensureActive()
             if (it?.isDestroyed == false) {
                 it
