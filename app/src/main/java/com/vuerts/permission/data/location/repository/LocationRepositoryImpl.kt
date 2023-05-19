@@ -11,13 +11,17 @@ import com.vuerts.permission.domain.location.exception.LocationIsOffException
 import com.vuerts.permission.domain.location.model.Location
 import com.vuerts.permission.domain.location.repository.LocationRepository
 import com.vuerts.permission.util.permissionchecker.PermissionChecker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
 import android.location.Location as AndroidLocation
 
 class LocationRepositoryImpl(
     private val context: Context,
     private val permissionChecker: PermissionChecker,
+    private val mainDispatcher: CoroutineContext = Dispatchers.Main.immediate,
 ) : LocationRepository {
 
     @SuppressLint("MissingPermission")
@@ -46,24 +50,27 @@ class LocationRepositoryImpl(
             throw LocationIsOffException()
         }
 
-        return suspendCancellableCoroutine {
-            val callback = object : LocationListener {
+        return withContext(mainDispatcher) {
+            suspendCancellableCoroutine {
+                val callback = object : LocationListener {
 
-                override fun onLocationChanged(location: AndroidLocation) {
-                    it.resume(AndroidLocationToLocationMapper().map(location))
-                    locationService.removeUpdates(this)
+                    override fun onLocationChanged(location: AndroidLocation) {
+                        it.resume(AndroidLocationToLocationMapper().map(location))
+                        locationService.removeUpdates(this)
+                    }
+
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
+                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 }
 
-                override fun onProviderEnabled(provider: String) {}
-                override fun onProviderDisabled(provider: String) {}
-                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-            }
+                it.invokeOnCancellation { locationService.removeUpdates(callback) }
 
-            it.invokeOnCancellation { locationService.removeUpdates(callback) }
 
-            locationService.apply {
-                requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0F, callback)
-                requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0F, callback)
+                locationService.apply {
+                    requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0F, callback)
+                    requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0F, callback)
+                }
             }
         }
     }
