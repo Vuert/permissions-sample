@@ -1,7 +1,9 @@
 package com.vuerts.permission.util.permissionchecker
 
 import android.app.Activity
+import android.content.Context
 import androidx.annotation.MainThread
+import com.vuerts.permission.util.extensions.content.isPermissionDenied
 import com.vuerts.permission.util.extensions.lifecycle.isAtLeastStarted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -17,6 +19,7 @@ private typealias ActivityWeakRef = WeakReference<PermissionCheckerActivity>
 private typealias ActivityCallback = (PermissionCheckerActivity) -> Unit
 
 class ResultApiPermissionChecker(
+    private val context: Context,
     private val mainDispatcher: CoroutineContext = Dispatchers.Main.immediate,
 ) : PermissionChecker {
 
@@ -48,43 +51,46 @@ class ResultApiPermissionChecker(
     /**
      * @see PermissionChecker.checkPermissions
      */
-    override suspend fun checkPermissions(vararg permissions: String): Result<Unit> {
-        mutex.lock()
+    override suspend fun checkPermissions(vararg permissions: String): Result<Unit> =
+        if (permissions.any(context::isPermissionDenied)) {
 
-        return try {
-            val result: PermissionResult = withContext(mainDispatcher) {
-                var activity: PermissionCheckerActivity? = awaitForStartedActivity()
+            mutex.lock()
+            try {
+                val result: PermissionResult = withContext(mainDispatcher) {
+                    var activity: PermissionCheckerActivity? = awaitForStartedActivity()
 
-                val result: PermissionResult = suspendCancellableCoroutine {
-                    resultCallback = it::resume
-                    it.invokeOnCancellation { resultCallback = null }
-                    activity?.resultLauncher?.launch(arrayOf(*permissions))
-                    activity = null // Preventing memory leak
+                    val result: PermissionResult = suspendCancellableCoroutine {
+                        resultCallback = it::resume
+                        it.invokeOnCancellation { resultCallback = null }
+                        activity?.resultLauncher?.launch(arrayOf(*permissions))
+                        activity = null // Preventing memory leak
+                    }
+
+                    resultCallback = null
+
+                    result
                 }
 
-                resultCallback = null
+                if (result.all { it.value }) {
+                    Result.success(Unit)
+                } else {
+                    val deniedPermissions = result
+                        .entries
+                        .asSequence()
+                        .filter { !it.value }
+                        .map { it.key }
+                        .toSet()
 
-                result
+                    Result.failure(PermissionChecker.PermissionsDeniedException(deniedPermissions))
+                }
+            } catch (throwable: Throwable) {
+                Result.failure(throwable)
+            } finally {
+                mutex.unlock()
             }
-
-            if (result.all { it.value }) {
-                Result.success(Unit)
-            } else {
-                val deniedPermissions = result
-                    .entries
-                    .asSequence()
-                    .filter { !it.value }
-                    .map { it.key }
-                    .toSet()
-
-                Result.failure(PermissionChecker.PermissionsDeniedException(deniedPermissions))
-            }
-        } catch (throwable: Throwable) {
-            Result.failure(throwable)
-        } finally {
-            mutex.unlock()
+        } else {
+            Result.success(Unit)
         }
-    }
 
     /**
      * Awaits for attached and started activity
