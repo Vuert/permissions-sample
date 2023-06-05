@@ -4,6 +4,9 @@ import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
+inline val LifecycleOwner.isAtLeastStarted: Boolean
+    get() = lifecycle.isAtLeastStarted
+
 inline fun LifecycleOwner.repeatOnStarted(
     crossinline block: suspend CoroutineScope.() -> Unit,
 ): Job = lifecycle.repeatOnStarted(block)
