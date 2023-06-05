@@ -30,12 +30,16 @@ class App : Application() {
 }
 
 private fun getModule(): Module = module {
-    single { ResultApiPermissionChecker() } bind PermissionChecker::class
+    single {
+        ResultApiPermissionChecker(context = androidContext())
+    } bind PermissionChecker::class
+
     single<LocationRepository> {
         LocationRepositoryImpl(
             context = androidContext(),
             permissionChecker = get(),
         )
     }
+
     viewModel { LocationViewModel(locationRepository = get()) }
 }
