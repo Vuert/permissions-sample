@@ -1,26 +1,20 @@
 package com.vuerts.permission.util.permissionchecker
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
 import androidx.annotation.MainThread
+import com.vuerts.permission.util.extensions.lifecycle.isAtLeastStarted
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 private typealias PermissionResult = Map<String, Boolean>
 private typealias ResultCallback = (PermissionResult) -> Unit
 private typealias ActivityWeakRef = WeakReference<PermissionCheckerActivity>
-
-private const val ACTIVITY_CHECK_TIMEOUT_MS = 500L
-private const val ACTIVITY_CHECK_ATTEMPTS_AMOUNT = 3
+private typealias ActivityCallback = (PermissionCheckerActivity) -> Unit
 
 class ResultApiPermissionChecker(
     private val mainDispatcher: CoroutineContext = Dispatchers.Main.immediate,
@@ -32,12 +26,15 @@ class ResultApiPermissionChecker(
 
     private var resultCallback: ResultCallback? = null
 
+    private var onNewActivityCallback: ActivityCallback? = null
+
     /**
      * Stores [activity] using a [WeakReference]. Call it on [Activity.onStart]
      */
     @MainThread
     fun attach(activity: PermissionCheckerActivity) {
         activityWeakRef = WeakReference(activity)
+        onNewActivityCallback?.invoke(activity)
     }
 
     /**
@@ -56,7 +53,7 @@ class ResultApiPermissionChecker(
 
         return try {
             val result: PermissionResult = withContext(mainDispatcher) {
-                var activity: PermissionCheckerActivity? = awaitForActivityOrThrow()
+                var activity: PermissionCheckerActivity? = awaitForStartedActivity()
 
                 val result: PermissionResult = suspendCancellableCoroutine {
                     resultCallback = it::resume
@@ -90,28 +87,21 @@ class ResultApiPermissionChecker(
     }
 
     /**
-     * Awaits for attached and active activity
-     *
-     * @throws [ActivityNotFoundException] if reaches the timeout
+     * Awaits for attached and started activity
      */
-    private suspend fun awaitForActivityOrThrow(): PermissionCheckerActivity {
-        var checkAttempts = 0
+    private suspend fun awaitForStartedActivity(): PermissionCheckerActivity {
+        val activity = activityWeakRef?.get()
 
-        while (coroutineContext.isActive &&
-            activityWeakRef?.get()?.isDestroyed != false &&
-            checkAttempts != ACTIVITY_CHECK_ATTEMPTS_AMOUNT
-        ) {
-            delay(ACTIVITY_CHECK_TIMEOUT_MS)
-            checkAttempts++
-        }
-
-        return activityWeakRef?.get().let {
-            coroutineContext.ensureActive()
-            if (it?.isDestroyed == false) {
-                it
-            } else {
-                throw ActivityNotFoundException()
+        return if (activity?.isAtLeastStarted == true) {
+            activity
+        } else {
+            val newActivity = suspendCancellableCoroutine {
+                it.invokeOnCancellation { onNewActivityCallback = null }
+                onNewActivityCallback = it::resume
             }
+            onNewActivityCallback = null
+
+            newActivity
         }
     }
 }

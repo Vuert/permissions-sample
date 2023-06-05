@@ -9,6 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+inline val Lifecycle.isAtLeastStarted: Boolean
+    get() = currentState.isAtLeast(Lifecycle.State.STARTED)
+
 inline fun Lifecycle.repeatOnStarted(
     crossinline block: suspend CoroutineScope.() -> Unit,
 ): Job = coroutineScope.launch {
