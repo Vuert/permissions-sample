@@ -18,13 +18,33 @@ inline fun Lifecycle.repeatOnStarted(
     repeatOnLifecycle(Lifecycle.State.STARTED) { block() }
 }
 
+inline fun Lifecycle.launchOnLifecycleCreate(
+    crossinline block: CoroutineScope.() -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_CREATE) { block() }
+
 inline fun Lifecycle.launchOnLifecycleStart(
     crossinline block: CoroutineScope.() -> Unit,
 ): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_START) { block() }
 
+inline fun Lifecycle.launchOnLifecycleResume(
+    crossinline block: CoroutineScope.() -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_RESUME) { block() }
+
+inline fun Lifecycle.launchOnLifecyclePause(
+    crossinline block: CoroutineScope.() -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_PAUSE) { block() }
+
+inline fun Lifecycle.launchOnLifecycleStop(
+    crossinline block: CoroutineScope.() -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_STOP) { block() }
+
 inline fun Lifecycle.launchOnLifecycleDestroy(
     crossinline block: CoroutineScope.() -> Unit,
 ): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_DESTROY) { block() }
+
+inline fun Lifecycle.launchOnAnyLifecycleEvent(
+    crossinline block: CoroutineScope.(Lifecycle.Event) -> Unit,
+): Job = launchOnLifecycleEvent(Lifecycle.Event.ON_ANY, block)
 
 inline fun Lifecycle.launchOnLifecycleEvent(
     event: Lifecycle.Event,

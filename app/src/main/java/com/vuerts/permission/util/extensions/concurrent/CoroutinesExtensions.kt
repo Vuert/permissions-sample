@@ -1,16 +1,11 @@
 package com.vuerts.permission.util.extensions.concurrent
 
-import kotlinx.coroutines.CancellationException
-
 /**
- * Awaits for coroutine cancellation invokes [block] on cancellation
+ * Awaits for coroutine cancellation, invokes [onCancellation] on cancellation
  */
-suspend inline fun awaitCancellation(logger: (Throwable) -> Unit = {}, block: () -> Unit) {
+suspend inline fun awaitCancellation(onCancellation: () -> Unit): Nothing =
     try {
         kotlinx.coroutines.awaitCancellation()
-    } catch (_: CancellationException) {
-        block.invoke()
-    } catch (throwable: Throwable) {
-        logger.invoke(throwable)
+    } finally {
+        onCancellation.invoke()
     }
-}
