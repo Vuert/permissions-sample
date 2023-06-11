@@ -33,9 +33,8 @@ class LocationFragment : Fragment() {
     ): View = FragmentLocationBinding
         .inflate(inflater, container, false)
         .also(::binding::set)
-        .also {
-            viewLifecycleOwner.launchOnLifecycleDestroy { binding = null }
-        }.root
+        .also { viewLifecycleOwner.launchOnLifecycleDestroy { binding = null } }
+        .root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
