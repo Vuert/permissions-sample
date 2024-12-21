@@ -53,9 +53,10 @@ class LocationRepositoryImpl(
         return withContext(mainDispatcher) {
             suspendCancellableCoroutine {
                 val callback = object : LocationListener {
+                    val mapper = AndroidLocationToLocationMapper()
 
                     override fun onLocationChanged(location: AndroidLocation) {
-                        it.resume(AndroidLocationToLocationMapper().map(location))
+                        it.resume(mapper.map(location))
                         locationService.removeUpdates(this)
                     }
 
