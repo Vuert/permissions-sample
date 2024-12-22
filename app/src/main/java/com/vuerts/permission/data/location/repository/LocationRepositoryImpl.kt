@@ -16,6 +16,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import android.location.Location as AndroidLocation
 
 class LocationRepositoryImpl(
@@ -56,17 +57,21 @@ class LocationRepositoryImpl(
                     val mapper = AndroidLocationToLocationMapper()
 
                     override fun onLocationChanged(location: AndroidLocation) {
-                        it.resume(mapper.map(location))
                         locationService.removeUpdates(this)
+                        it.resume(mapper.map(location))
                     }
 
                     override fun onProviderEnabled(provider: String) {}
-                    override fun onProviderDisabled(provider: String) {}
+
+                    override fun onProviderDisabled(provider: String) {
+                        it.resumeWithException(LocationIsOffException())
+                    }
+
+                    @Deprecated("Deprecated")
                     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 }
 
                 it.invokeOnCancellation { locationService.removeUpdates(callback) }
-
 
                 locationService.apply {
                     requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0F, callback)
